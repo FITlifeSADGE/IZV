@@ -67,12 +67,14 @@ def generate_sinus(show_figure: bool=False, save_path: str | None=None):
     ax.set_ylim(-0.8, 0.8)
     ax.set_xlabel('t')
     ax.set_ylabel(r'$f_1(x)$')
+    ax.set_yticks([-0.8, -0.4, 0, 0.4, 0.8])
     ax = fig.add_subplot(3, 1, 2)
     ax.plot(t, 0.25 * np.sin(np.pi * t))
     ax.set_xlim(0, 100)
     ax.set_ylim(-0.8, 0.8)
     ax.set_xlabel('t')
     ax.set_ylabel(r'$f_2(x)$')
+    ax.set_yticks([-0.8, -0.4, 0, 0.4, 0.8])
     ax = fig.add_subplot(3, 1, 3)
     ax.plot(t, up, c="green")
     ax.plot(t, down, c="red")
@@ -80,6 +82,7 @@ def generate_sinus(show_figure: bool=False, save_path: str | None=None):
     ax.set_ylim(-0.8, 0.8)
     ax.set_xlabel('t')
     ax.set_ylabel(r'$f_3(x)$')
+    ax.set_yticks([-0.8, -0.4, 0, 0.4, 0.8])
     if show_figure:
         fig.show()
     else:
@@ -88,8 +91,42 @@ def generate_sinus(show_figure: bool=False, save_path: str | None=None):
 
 
 def download_data(url="https://ehw.fit.vutbr.cz/izv/temp.html"):
+    req = requests.get(url)
+    soup = BeautifulSoup(req.text, 'html.parser')
+    rows = soup.select('tr')
+    temps = []
+    for data in rows:
+        d = dict()
+        year_month = [tag.get_text(strip=True) for tag in data.find_all('td', class_='ce1')]
+        if len(year_month) == 0:
+            year_month = [tag.get_text(strip=True) for tag in data.find_all('td', class_='ce2')]
+        temp = [tag.get_text(strip=True) for tag in data.find_all('td', class_='ce3')]
+        temp = [float(i.replace(',','.')) for i in temp if len(i) > 1]
+        d['year'] = int(year_month[0])
+        d['month'] = int(year_month[1])
+        d['temp'] = np.array(temp)
+        temps.append(d)
+    return temps
     pass
 
 
 def get_avg_temp(data, year=None, month=None) -> float:
+    avg = 0
+    count = 0
+    if ((year is None) and (month is None)):
+        for year_month in data:
+            avg += (np.sum(year_month['temp'])/(len(year_month['temp'])))
+            count += 1
+    if (year is None):
+        for yr in data:
+            if yr['month'] == month:
+                avg += (np.sum(yr['temp'])/(len(yr['temp'])))
+                count += 1
+    if (month is None):
+        for mnth in data:
+            if mnth['year'] == year:
+                avg += (np.sum(mnth['temp'])/(len(mnth['temp'])))
+                count += 1
+    print(avg)
+    return avg/count
     pass
