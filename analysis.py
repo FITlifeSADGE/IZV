@@ -58,13 +58,13 @@ def parse_data(df : pd.DataFrame, verbose : bool = False) -> pd.DataFrame:
         original = round(original, 1)
         print("orig_size = {} MB".format(original))
     my_list = list(new_df)
-    removed = ['region', 'a', 'b', 'd', 'e', 'f', 'g']
+    removed = ['region', 'h', 'i', 'p2a']
+    cat = ['k', 'l', 'o', 'p', 'q']
     for i in removed:
         my_list.remove(i)
-    to_float = list(['d', 'e', 'f', 'g', 'a', 'b'])
     new_df["date"] = pd.to_datetime(new_df["p2a"])
-    new_df[my_list] = new_df[my_list].astype('category')
-    new_df[to_float] = new_df[to_float].apply(pd.to_numeric, errors='coerce', downcast='float')
+    new_df[my_list] = new_df[my_list].apply(pd.to_numeric, errors='coerce')
+    new_df[cat] = new_df[cat].astype('category')
     new_df.drop_duplicates(subset=["p1"], inplace=True)
     if verbose:
         new = (new_df.memory_usage(index=False, deep=True).sum())/(1000*1000)
@@ -77,26 +77,79 @@ def parse_data(df : pd.DataFrame, verbose : bool = False) -> pd.DataFrame:
 def plot_visibility(df: pd.DataFrame, fig_location: str = None,
                     show_figure: bool = False):
     regions = ['PHA', 'STC', 'JHM', 'PLK']
-    #df = df[df["region"].isin(regions)]
     df = df.loc[df["region"].isin(regions)]
     types = {
-        1: "den: viditelnost nezhoršená vlivem povětrnostních podmínek",
-        2: "den: zhoršená viditelnost (svítání, soumrak)",
-        3: "den: zhoršená viditelnost vlivem povětrnostních podmínek (mlha, sněžení, déšť apod.)",
-        4: "noc: s veřejným osvětlením, viditelnost nezhoršená vlivem povětrnostních podmínek",
-        5: "noc: s veřejným osvětlením, zhoršená viditelnost vlivem povětrnostních podmínek (mlha, déšť, sněžení apod.)",
-        6: "noc: bez veřejného osvětlení, viditelnost nezhoršená vlivem povětrnostních podmínek",
-        7: "noc: bez veřejného osvětlení, viditelnost zhoršená vlivem povětrnostních podmínek (mlha, déšť, sněžení apod.)",
+        1: "den: viditelnost nezhoršená",
+        2: "den: viditelnost zhoršená",
+        3: "den: viditelnost zhoršená",
+        4: "noc: viditelnost nezhoršená",
+        5: "noc: viditelnost zhoršená",
+        6: "noc: viditelnost nezhoršená",
+        7: "noc: viditelnost zhoršená",
     }
-    df["visibility"] = df["p19"].map(types)
-    visibility_accident = df.groupby(["region", "visibility"]).size()
-    print(visibility_accident[0])
+    df["p19"] = df["p19"].replace(types)
+    titles = ["den: viditelnost nezhoršená", "den: viditelnost zhoršená", "noc: viditelnost nezhoršená", "noc: viditelnost zhoršená"]
+
+    visibility_accident = (df.groupby(["region", "p19"]).agg({"p1": "count"}).reset_index())
+    
+    sns.set_style("darkgrid")
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(8.27, 8.27))
+    axes = axes.flatten()
+    for i in range(4):
+        sns.barplot(ax=axes[i], data=visibility_accident[i::4], x='region', y='p1', saturation=1)
+        axes[i].set_title(titles[i], fontweight="bold")
+        axes[i].set(ylabel='', xlabel='')
+        axes[i].spines['bottom'].set_color('#404040')
+        axes[i].set(ylabel='Počet nehod', xlabel='Kraj')
+    axes[0].set(xlabel='')
+    axes[1].set(xlabel='')
+    axes[1].set(ylabel='')
+    axes[3].set(ylabel='')
+    plt.tight_layout()
+
+    # save or show
+    if fig_location:
+        plt.savefig(fig_location)
+    if show_figure:
+        plt.show()
+
     
     pass
 
 # Ukol4: druh srážky jedoucích vozidel
 def plot_direction(df: pd.DataFrame, fig_location: str = None,
-                   show_figure: bool = False):
+                   show_figure: bool = False):   
+    regions = ['PHA', 'STC', 'JHM', 'PLK']
+    df = df.loc[df["region"].isin(regions)]
+    types = {
+        0: "nepřichází v úvahu",
+        1: "čelní",
+        2: "boční",
+        3: "boční",
+        4: "zezadu",
+    }
+    df["p7"] = df["p7"].replace(types)
+    titles = ["Kraj: JHM", "Kraj: PLK", "Kraj: PHA", "Kraj: STC"]
+    
+    month_accident = (df.groupby(["region", df.date.dt.month, "p7"]).agg({"p1": "count"}).reset_index())
+    
+    sns.set_style("darkgrid")
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(8.27, 8.27))
+    axes = axes.flatten()
+    for i in range(4):
+        sns.barplot(ax=axes[i], data=month_accident[48*i:48*(i+1)], x='date', y='p1', saturation=1)
+        axes[i].set_title(titles[i], fontweight="bold")
+        axes[i].set(ylabel='', xlabel='')
+        axes[i].spines['bottom'].set_color('#404040')
+        axes[i].set(ylabel='Počet nehod', xlabel='Měsíc')
+    plt.tight_layout()
+
+    # save or show
+    if fig_location:
+        plt.savefig(fig_location)
+    if show_figure:
+        plt.show()
+    
     pass
 
 # Ukol 5: Následky v čase
@@ -108,8 +161,15 @@ if __name__ == "__main__":
     # zde je ukazka pouziti, tuto cast muzete modifikovat podle libosti
     # skript nebude pri testovani pousten primo, ale budou volany konkreni 
     # funkce.
-    df = load_data("data/data.zip")
-    df2 = parse_data(df, True)
+    
+    file_name ="parsed_data.csv"
+    new_load = False
+    if new_load:
+        df = load_data("data/data.zip")
+        df2 = parse_data(df, True)
+        df2.to_pickle(file_name)
+    else:
+        df2 = pd.read_pickle(file_name)
     
     plot_visibility(df2, "01_visibility.png")
     plot_direction(df2, "02_direction.png", True)
@@ -122,3 +182,5 @@ if __name__ == "__main__":
 # Pak muzete data jednou nacist a dale ladit jednotlive funkce
 # Pripadne si muzete vysledny dataframe ulozit nekam na disk (pro ladici
 # ucely) a nacitat jej naparsovany z disku
+
+# %%
