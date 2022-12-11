@@ -122,7 +122,6 @@ def plot_direction(df: pd.DataFrame, fig_location: str = None,
     regions = ['PHA', 'STC', 'JHM', 'PLK']
     df = df.loc[df["region"].isin(regions)]
     types = {
-        0: "nepřichází v úvahu",
         1: "čelní",
         2: "boční",
         3: "boční",
@@ -132,19 +131,13 @@ def plot_direction(df: pd.DataFrame, fig_location: str = None,
     titles = ["Kraj: JHM", "Kraj: PLK", "Kraj: PHA", "Kraj: STC"]
     
     month_accident = (df.groupby(["region", df.date.dt.month, "p7"]).agg({"p1": "count"}).reset_index())
+    month_accident = month_accident[month_accident.p7 != 0]
     
-    sns.set_style("darkgrid")
-    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(8.27, 8.27))
-    axes = axes.flatten()
-    for i in range(4):
-        sns.barplot(ax=axes[i], data=month_accident[48*i:48*(i+1)], x='date', y='p1', saturation=1)
-        axes[i].set_title(titles[i], fontweight="bold")
-        axes[i].set(ylabel='', xlabel='')
-        axes[i].spines['bottom'].set_color('#404040')
-        axes[i].set(ylabel='Počet nehod', xlabel='Měsíc')
-    plt.tight_layout()
-
-    # save or show
+    graph = sns.catplot(data=month_accident, x="date", y='p1', col="region", col_wrap=2, hue='p7', legend=True, kind="bar", saturation=0.5, sharey=False)
+    
+    graph.set_axis_labels("Měsíc", "Počet nehod")
+    graph.legend.set_title('Druh srážky')
+    graph.set_titles('Kraj: {col_name}')
     if fig_location:
         plt.savefig(fig_location)
     if show_figure:
