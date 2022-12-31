@@ -1,0 +1,1 @@
+# Počet úmrří při typu srážky (boční, čelní, zadní)
